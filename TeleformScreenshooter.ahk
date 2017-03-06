@@ -1,20 +1,11 @@
-;	Name:		TeleformScreenshooter
-;	Version:	1.0
-;	Author:		Lucas Bodnyk
-;
-;	This script draws code from the WinWait framework by berban on www.autohotkey.com, as well as some generic examples.
-;	All variables "should" be prefixed with 'z'.
-;
-;
-;	All User Startup is '\\<Machine_Name>\c$\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup'.
-;	I recommend placing a shortcut there, pointing to this, which should probably just go in the Sierra folder.
-
 /*
 
-Looks like the timer region of the screen is (758,508) to (932,567). I should just need to take a picture every minute and compare it to the previous picture. If they're the same, assume it crashed.
-Still need to figure out the names of the controls if I'm going to manually shut it down and restart it.
+	Name:		TeleformScreenshooter
+	Version:	1.2
+	Author:		Lucas Bodnyk
 
-
+	Looks like the timer region of the screen is (758,508) to (932,567). I should just need to take a picture every minute and compare it to the previous picture. If they're the same, assume it crashed.
+	Still need to figure out the names of the controls if I'm going to manually shut it down and restart it.
 
 */
 
@@ -26,8 +17,6 @@ SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 SplitPath, A_ScriptName, , , , ScriptBasename
 StringReplace, AppTitle, ScriptBasename, _, %A_SPACE%, All
 OnExit("ExitFunc") ; Register a function to be called on exit
-
-
 
 ;
 ;	BEGIN INITIALIZATION SECTION
@@ -49,28 +38,36 @@ Try {
 	MsgBox Testing TeleformScreenshooter.ini failed! You probably need to check file permissions! I won't run without my ini! Dying now.
 	ExitApp
 }
-IniRead, zClosedClean, TeleformScreenshooter.ini, Log, zClosedClean, 0
-IniRead, zEmailAs, TeleformScreenshooter.ini, General, zEmailAs, %A_Space%
-IniRead, zPassword, TeleformScreenshooter.ini, General, zPassword, %A_Space%
-IniRead, zRecipient, TeleformScreenshooter.ini, General, zRecipient, %A_Space%
+IniRead, bClosedClean, TeleformScreenshooter.ini, Log, bClosedClean, 0
+IniRead, sEmailAs, TeleformScreenshooter.ini, General, sEmailAs, %A_Space%
+IniRead, sPassword, TeleformScreenshooter.ini, General, sPassword, %A_Space%
+IniRead, sRecipient, TeleformScreenshooter.ini, General, sRecipient, %A_Space%
+IniRead, sScreenshotFilename, TeleformScreenshooter.ini, General, sScreenshotFilename, %A_Space%
+IniRead, sSubject, TeleformScreenshooter.ini, General, sSubject, %A_Space%
+IniRead, sBody, TeleformScreenshooter.ini, General, sBody, %A_Space%
 
-Log("## zClosedClean="zClosedClean)
-Log("## zEmailAs="zEmailAs)
-Log("## zPassword="zPassword)
-Log("## zRecipient="Recipient)
-If (zClosedClean = 0) {
+Log("##        bClosedClean = "bClosedClean)
+Log("##            sEmailAs = "sEmailAs)
+Log("##           sPassword = "sPassword)
+Log("##          sRecipient = "sRecipient)
+Log("## sScreenshotFilename = "sScreenshotFilename)
+Log("##            sSubject = "sSubject)
+Log("##               sBody = "sBody)
+
+
+If (bClosedClean = 0) {
 	Log("!! It is likely that TeleformScreenshooter was terminated without warning.")
 	}
-If (zEmailAs = "") {
+If (sEmailAs = "") {
 	Log("-- No username supplied. I won't be able to send an email without a username. Quitting.")
 	ExitApp
 	}
-If (zPassword = "") {
+If (sPassword = "") {
 	Log("-- No password supplied. I won't be able to send an email without a password. Quitting.")
 	ExitApp
 	}
 
-IniWrite, 0, TeleformScreenshooter.ini, Log, zClosedClean
+IniWrite, 0, TeleformScreenshooter.ini, Log, bClosedClean
 	
 ; DOWNLOAD NECESSARY FILES
 
@@ -101,11 +98,11 @@ Log("-- Initialization finished`, starting up... `(If I got this far`, it should
 
 TakeAScreenshot:
 Log("-- Taking a screenshot of the desktop`,")
-RunWait, MiniCap.exe -save "$appdir$screenshot.jpg" -capturedesktop -exit,, Hide
+RunWait, MiniCap.exe -save "$appdir$%sScreenshotFilename%.jpg" -capturedesktop -exit,, Hide
 
 EmailTheScreenshot:
-Log("-- Emailing the file to %zRecipient%`,")
-	RunWait, %A_WorkingDir%\mailsend1.18.exe -to %zRecipient% -from %zEmailAs% -ssl -smtp smtp.gmail.com -port 465 -sub "III Teleforms screenshot" -M "Attached is a screenshot of the III Teleforms computer's desktop." +cc +bc -q -auth-plain -user "%zEmailAs%" -pass "%zPassword%" -attach "screenshot.jpg",, Hide
+Log("-- Emailing the file to %sRecipient%`,")
+	RunWait, %A_WorkingDir%\mailsend1.18.exe -to %sRecipient% -from %sEmailAs% -ssl -smtp smtp.gmail.com -port 465 -sub "%sSubject%" -M "%sBody%" +cc +bc -q -auth-plain -user "%sEmailAs%" -pass "%sPassword%" -attach "%sScreenshotFilename%.jpg",, Hide
 	
 ; functions to log and notify what's happening, courtesy of atnbueno
 Log(Message, Type="1") ; Type=1 shows an info icon, Type=2 a warning one, and Type=3 an error one ; I'm not implementing this right now, since I already have custom markers everywhere.
@@ -143,30 +140,30 @@ ExitFunc(ExitReason, ExitCode)
 {
     if ExitReason in Exit
 	{
-		Log("-- Exiting cleanly`, zClosedClean should be 1.")
-		IniWrite, 1, TeleformScreenshooter.ini, Log, zClosedClean
+		Log("-- Exiting cleanly`, bClosedClean should be 1.")
+		IniWrite, 1, TeleformScreenshooter.ini, Log, bClosedClean
 	}
 	if ExitReason in Menu
     {
         MsgBox, 4, , This takes screenshots for Allison.`nAre you sure you want to exit?
         IfMsgBox, No
             return 1  ; OnExit functions must return non-zero to prevent exit.
-		IniWrite, 1, TeleformScreenshooter.ini, Log, zClosedClean
+		IniWrite, 1, TeleformScreenshooter.ini, Log, bClosedClean
 		Log("-- User is exiting TeleformScreenshooter`, dying now.")
     }
 	if ExitReason in Logoff,Shutdown
 	{
-		IniWrite, 1, TeleformScreenshooter.ini, Log, zClosedClean
+		IniWrite, 1, TeleformScreenshooter.ini, Log, bClosedClean
 		Log("-- System logoff or shutdown in process`, dying now.")
 	}
 		if ExitReason in Close
 	{
-		IniWrite, 1, TeleformScreenshooter.ini, Log, zClosedClean
+		IniWrite, 1, TeleformScreenshooter.ini, Log, bClosedClean
 		Log("!! The system issued a WM_CLOSE or WM_QUIT`, or some other unusual termination is taking place`, dying now.")
 	}
 		if ExitReason not in Close,Exit,Logoff,Menu,Shutdown
 	{
-		IniWrite, 1, TeleformScreenshooter.ini, Log, zClosedClean
+		IniWrite, 1, TeleformScreenshooter.ini, Log, bClosedClean
 		Log("!! I am closing unusually`, with ExitReason: %ExitReason%`, dying now.")
 	}
     ; Do not call ExitApp -- that would prevent other OnExit functions from being called.
